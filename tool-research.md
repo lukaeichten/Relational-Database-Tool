@@ -115,6 +115,14 @@ Online comparaisons:
 - ERD tool which only implements the first conceptual design layer
 - Based on the example images, I assume that it is possible to define some cardinality coefficients but I could not derive what precision they offer
 
+### bigER
+
+[GitHub](https://github.com/borkdominik/bigER)
+
+[Docs](https://github.com/borkdominik/bigER/wiki)
+
+- The user is warned about some missing constraints or similar such as no identifying attribute for an entity.
+
 ## Comparative table
 
 | **Name** | **Open Source** | **Conceptual layer** | **Logical layer** | **Physical layer** | **Input Style** | **Export** | **Collaboration** |  **Distribution** | **License** | **Purpose** | **Engineering direction** | **Cardinality coefficients** | **Functional Dependencies** | **Decision Tracing** |
@@ -132,6 +140,7 @@ Online comparaisons:
 | [**DbSchema**](#dbschema) | ❌ | ✗ | ✗ | ✅ | Graphical, binary file format | SQL, binary file format | ❌ | App | *Proprietary* | DB management | Forward, reverse | ✅ | ❌ | ❌ |
 | [**Vertabelo/Redgate Data Modeler**](#vertabeloredgate-data-modeler) | ❌ | ? | ? | ? | Graphical, ? | ? | Cloud based | Web | *Proprietary* | Design | ? | ? | ❌ | ❌ |
 | [**Creately**](#creately) | ❌ | ✅ | ❌ | ❌ | Graphical | ? | Cloud based | Web | *Proprietary* | Design | ? | ? | ❌ | ❌ |
+| [**bigER**](#biger) | ✅ | ✅ | ✗ | ✓ | Graphical, DSL | SQL, `.erd` file | Possible with VCS | VS Code Extension | MIT | Design, modeling | Forwards, reverse | ✅ | ❌ | ✗ |
 
 - `✅` indicates that the criteria is fully met.
 - `✓` indicates that the criteria is mostly met (check the notes for more information).
