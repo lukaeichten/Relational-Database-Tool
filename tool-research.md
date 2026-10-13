@@ -117,21 +117,21 @@ Online comparaisons:
 
 ## Comparative table
 
-| **Name** | **Open Source** | **Conceptual layer** | **Logical layer** | **Physical layer** | **Input Style** | **Export** | **Collaboration** |  **Distribution** | **License** | **Purpose** | **Engineering direction** | **Cardinality coefficients** |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| [**ChartDB**](#chartdb) | ✅ | ✗ | ✗ | ✅ | Graphical, SQL, DBML | SQL, DBML | Cloud based | Web, Docker, NodeJS | AGPL-3.0 | Documentation, design | Forward, reverse | ✓ |
-| [**dbdiagram.io**](#dbdiagramio) | ❌ | ✗ | ✗ | ✅ | Graphical, DBML | SQL, DBML | Possibly behind paywall | Web | *Proprietary* | Documentation, design | Forward, reverse | ✓ |
-| [**DBML**](#dbml) | ✅ | ✗ | ✗ | ✅ | DBML | SQL | Possible with VCS | `npm` | Apache-2.0 | Documentation, design | Forward, reverse | ✓ |
-| [**SqlDBM**](#sqldbm) | ❌ | ✗ | ❌ | ✅ | Graphical | | Cloud based | Web | *Proprietary* | Documentation, design, AI | Forward, reverse | ❌ |
-| [**DrawSQL**](#drawsql) | ❌ | ❌ | ❌ | ✅ | Graphical, SQL, DBML, JSON | SQL, JSON, Laravel* | Cloud based | Web | *Proprietary* | (Fast) Design, AI, Laravel, collaboration | Forward, reverse | ✓ |
-| [**Azimutt**](#azimutt) | ✅ | ✗ | ❌ | ✅ | SQL, [AML](https://azimutt.app/aml) | SQL, [AML](https://azimutt.app/aml) | ❌ | Web, Docker, `npm` | MIT | Documentation, design, analysis, optimization | Forward, reverse | ✓ |
-| [**QuickDBD**](#quickdbd) | ❌ | ❌ | ✗ | ✅ | Graphical, DSL | SQL, diagram as PDF | ❌ | Web | *Proprietary* | Documentation, design | Forward, reverse | ✓ |
-| [**eraser**](#eraser) | ❌ | ✓ | ❌ | ✅ | Graphical, DSL | ? | ? | Web | *Proprietary* | Diagram, Design | ? | ? |
-| [**ERDPlus**](#erdplus) | ❌ | ✅ | ❌ | ❌ | Graphical | PNG | ❌ | Web | *Proprietary* | ER-diagram | ❌ | ✅ |
-| [**Lucidchart**](#lucidchart) | ❌ | ? | ? | ? | Graphical, ? | ? | Cloud based | Web | *Proprietary*| ER-diagram | ? | ? |
-| [**DbSchema**](#dbschema) | ❌ | ✗ | ✗ | ✅ | Graphical, binary file format | SQL, binary file format | ❌ | App | *Proprietary* | DB management | Forward, reverse | ✅ |
-| [**Vertabelo/Redgate Data Modeler**](#vertabeloredgate-data-modeler) | ❌ | ? | ? | ? | Graphical, ? | ? | Cloud based | Web | *Proprietary* | Design | ? | ? |
-| [**Creately**](#creately) | ❌ | ✅ | ❌ | ❌ | Graphical | ? | Cloud based | Web | *Proprietary* | Design | ? | ? |
+| **Name** | **Open Source** | **Conceptual layer** | **Logical layer** | **Physical layer** | **Input Style** | **Export** | **Collaboration** |  **Distribution** | **License** | **Purpose** | **Engineering direction** | **Cardinality coefficients** | **Functional Dependencies** |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| [**ChartDB**](#chartdb) | ✅ | ✗ | ✗ | ✅ | Graphical, SQL, DBML | SQL, DBML | Cloud based | Web, Docker, NodeJS | AGPL-3.0 | Documentation, design | Forward, reverse | ✓ | ❌ |
+| [**dbdiagram.io**](#dbdiagramio) | ❌ | ✗ | ✗ | ✅ | Graphical, DBML | SQL, DBML | Possibly behind paywall | Web | *Proprietary* | Documentation, design | Forward, reverse | ✓ | ❌ |
+| [**DBML**](#dbml) | ✅ | ✗ | ✗ | ✅ | DBML | SQL | Possible with VCS | `npm` | Apache-2.0 | Documentation, design | Forward, reverse | ✓ | ❌ |
+| [**SqlDBM**](#sqldbm) | ❌ | ✗ | ❌ | ✅ | Graphical | | Cloud based | Web | *Proprietary* | Documentation, design, AI | Forward, reverse | ❌ | ❌ |
+| [**DrawSQL**](#drawsql) | ❌ | ❌ | ❌ | ✅ | Graphical, SQL, DBML, JSON | SQL, JSON, Laravel* | Cloud based | Web | *Proprietary* | (Fast) Design, AI, Laravel, collaboration | Forward, reverse | ✓ | ❌ |
+| [**Azimutt**](#azimutt) | ✅ | ✗ | ❌ | ✅ | SQL, [AML](https://azimutt.app/aml) | SQL, [AML](https://azimutt.app/aml) | ❌ | Web, Docker, `npm` | MIT | Documentation, design, analysis, optimization | Forward, reverse | ✓ | ❌ |
+| [**QuickDBD**](#quickdbd) | ❌ | ❌ | ✗ | ✅ | Graphical, DSL | SQL, diagram as PDF | ❌ | Web | *Proprietary* | Documentation, design | Forward, reverse | ✓ | ❌ |
+| [**eraser**](#eraser) | ❌ | ✓ | ❌ | ✅ | Graphical, DSL | ? | ? | Web | *Proprietary* | Diagram, Design | ? | ? | ❌ |
+| [**ERDPlus**](#erdplus) | ❌ | ✅ | ❌ | ❌ | Graphical | PNG | ❌ | Web | *Proprietary* | ER-diagram | ❌ | ✅ | ❌ |
+| [**Lucidchart**](#lucidchart) | ❌ | ? | ? | ? | Graphical, ? | ? | Cloud based | Web | *Proprietary*| ER-diagram | ? | ? | ❌ |
+| [**DbSchema**](#dbschema) | ❌ | ✗ | ✗ | ✅ | Graphical, binary file format | SQL, binary file format | ❌ | App | *Proprietary* | DB management | Forward, reverse | ✅ | ❌ |
+| [**Vertabelo/Redgate Data Modeler**](#vertabeloredgate-data-modeler) | ❌ | ? | ? | ? | Graphical, ? | ? | Cloud based | Web | *Proprietary* | Design | ? | ? | ❌ |
+| [**Creately**](#creately) | ❌ | ✅ | ❌ | ❌ | Graphical | ? | Cloud based | Web | *Proprietary* | Design | ? | ? | ❌ |
 
 - `✅` indicates that the criteria is fully met.
 - `✓` indicates that the criteria is mostly met (check the notes for more information).
