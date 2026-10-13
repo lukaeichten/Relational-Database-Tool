@@ -148,3 +148,39 @@ Online comparaisons:
 - `❌` indicates that the criteria is not met at all.
 
 Field values that are `?` indicate that this information could not be found. Check the notes in the [Tools](#tools) section.
+
+## Conclusion
+
+Many database tools exist, but they lack the power to work with all 3 design layers/phases.
+Most of the tools work purely on the physical model; a simple tool that has no notion of relationships and entities but only tables and foreign keys.
+There exist a few tools which are open sourced.
+All tools support a GUI to facilitate the DB modeling process (with the only exception of DBML which is a toolkit to represent a database model as a human readable file).
+Most apps are cloud based and run in the web.
+No tool supports the notion of functional dependencies or implements design decision taceing (for example the implementation of the safeguards of a domain of postal codes).
+
+One can see a clear pattern; most of the tools do not offer the design of a database by using multiple design phases.
+They focus on the quick generation of SQL/DDL code which is easier when only exposing the physical implementation directly where the notation of entities and releationships does not exist anymore.
+Other tools only offer the generation of visual diagramms for documentation purpose but are not ment to generate artifacts that can be used in the related developped software.
+
+To sum up, no tool supports all of the following functional requirements:
+- Separation and implementation of the conceptual, logical, and physical database design layer,
+- generation of SQL/DDL code,
+- cardinality coefficients without templates or constraints (so 2:5 is allowed),
+- validation of the built model and warnings/popups if something is not correct or not implemented (such as the implementation of domain constraints or cardinality coefficients),
+- functional dependencies,
+- and normalization.
+
+## Problems and research questions
+
+- Unite conceptual, logical, and physical design layers in a streamlined way from *conceptual* to *logical* to *physical* without mixing the layers itself
+  > How can a design decisions in one layer propagate to and influence the previous layer(s)?
+
+  > How can a tool store the design decisions and their impact of the 3 different layers?
+
+  > How can the tool enforce the use of the three design phases?
+
+  > What happens in the three design layers if the model changes?
+- Analyse functional dependencies and compute normalization level
+  > How must the user interact with the tool to communicate functional dependencies?
+- Human readable storage of the DB model
+  > How can the tool store the DB model in a human readable way without risking the loss of information and by using a structured non-binary language?
