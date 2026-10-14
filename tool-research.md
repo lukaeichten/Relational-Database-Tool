@@ -184,3 +184,60 @@ To sum up, no tool supports all of the following functional requirements:
   > How must the user interact with the tool to communicate functional dependencies?
 - Human readable storage of the DB model
   > How can the tool store the DB model in a human readable way without risking the loss of information and by using a structured non-binary language?
+
+# Technology overview
+
+## From scratch
+
+- VS Code Extension with language server
+  > Benefits: Well documented pattern, easy installation for the INFO0009 students, everything packages in one installation (no dependencies to resolve manually), natural integration in the development workflow, integration into existing UI (less work)
+
+  > Possible issues: VS Code performance, slow execution
+- Java FX app
+  > Benefits: Well documented, "fat Jar" as dependency package (no dependencies to resolve manually)
+
+  > Issues: A lot of work because one needs to implement a whole application from scratch
+- Compiler and DSL
+  > Benefits: Compiler creation is a well understood pattern, *conceptual* to *logical* to *physical* layer feels like a multi-stage compiler and each stage can report its own errors
+
+  > Issues: Cross-compatibility on all devices (INFO0009 students likely use Windows, Linux, and MacOS), GUI is not obvious for a compiler/transpiler
+- Web-based app (static website)
+  > Benefits: Easy to ship (for example GitHub pages)
+
+  > Issues: Everything runs with JavaScript (possibly slow) or WASM (hard to do), storage on the client device
+- Docker-based app
+  > Benefits: Backend can be implemented in any language, a lot of freedom
+
+  > Issues: Both backend and client must be implemented
+
+## Reuse of existing solutions
+
+- bigER
+  > Benefits: 2 phases are nearly completely implemented (less work to do), I like the syntax of the modelling language
+
+  > Issues: Inactive GitHub repository (last commit one year ago, not much issues and PRs), logical design phase is completely missing, a lot of changes must be made to the modelling language to introduce the logical design layer
+- ChartDB or DBML
+  > Benefits: Built to run completely in the browser (JS/TS), packaging as a VS Code extension may be possible, DBML toolchain is extensible
+
+  > Issues: DBML is not built around the 3 design phases -> the implementation of a 3 phase design will add a lot on new elements in the UI and DBML
+- Azimutt
+  > same as above with the exception that AML is used instead of DBML
+
+### DSL
+
+Here is a feature list of a DSL for database modelling:
+- (weak) entities
+- (identifying) relationships, roles, and cardinality coefficients
+- (derived/identifying, unique, multi-value, composite, required or nullable) attributes and domains (null as domain implementation or as attribute modifier?)
+- functional dependencies and normalization
+- domain to DB type mapping (or algorithm to do it automatically)
+- choice of index type (hash table or B+ tree)?
+- absorb relationships or junction table
+- decision tracing (with annotations?)
+- *sub-classes* and *super-classes*
+- aggregations?
+- views?
+
+Possible additional language features:
+- SQL dialect
+- name style (Camel case, Pascal case, Snake case, ...)
