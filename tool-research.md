@@ -17,13 +17,18 @@ Online comparaisons:
 - Uses [DBML](#dbml) and is a graphical wrapper around it
 - Supports `1:1` and `1:N` relationship cardinalities
 
+> Limitations: ChartDB does not support the selection of cardinality coefficients other than `1:1` and `1:N`. It is not possible to define functional dependencies. Cardinality coefficients and constraints are not enforced by the generated SQL code.
+
 ### dbdiagram.io
 
 [Homepage](https://dbdiagram.io/)
 
 [Docs](https://docs.dbdiagram.io/)
 
+- Uses [DBML](#dbml) and is a graphical wrapper around it
 - Supports all DBML relationship cardinalities
+
+> Limitations: It is not possible to define functional dependencies. Cardinality coefficients and constraints are not enforced by the generated SQL code.
 
 ### DBML
 
@@ -46,12 +51,16 @@ Online comparaisons:
 - Bad documentation (it is not well accessible and incomplete, proper navigation is missing)
 - Explicitly mentions ["Conceptual, logical, and physical modeling"](https://sqldbm.com/) but does no separation of those layers (concluded based on images and demo).
 
+> Limitations: It is not possible to define cardinalitiy constraints or coefficients, but nullable relationships are possible.
+
 ### DrawSQL
 
 [Homepage](https://drawsql.app/)
 
 - No public documentation
 - Cardinality coefficients limited to `1:1`, `1:N`, `N:1`
+
+> Limitations: Not possible to generate SQL code after schema creation. It is not possible to define any cardinalitiy constraints or coefficients freely, only limited to `1:1`, `1:N`, and `N:1`. Functional dependencies cannot be defined.
 
 ### Azimutt
 
@@ -66,11 +75,15 @@ Online comparaisons:
 - `1:N`, `N:N`, and `1:1` relationships are supported
 - [**Custom type system**](https://azimutt.app/docs/aml#types)
 
+> Limitations: Export to SQL is a paid feature. It is not possible to define any cardinalitiy constraints or coefficients freely, only limited to `1:1`, `1:N`, and `N:1`. Functional dependencies cannot be defined.
+
 ### QuickDBD
 
 [Homepage](https://quickdatabasediagrams.com)
 
 - Supports many relationship cardinalities: `1:1`, `1:N`, `N:1`, `M:N`, `1:0/1`, `0/1:1`, `0/1:0/1`, `1:0/N`, `0/N:1`
+
+> Limitations: SQL export does not contain cardinality constraint implementations. Functional dependencies cannot be defined.
 
 ### eraser
 
@@ -88,6 +101,8 @@ Online comparaisons:
 
 - only faces the conceptual design layer
 
+> Limitations: Only faces the conceptual design layer, no SQL export or more.
+
 ### Lucidchart
 
 [Homepage](https://lucid.co/lucidchart)
@@ -99,6 +114,8 @@ Online comparaisons:
 [Homepage](https://dbschema.com/)
 
 - Bugs on Linux: I was unable to close the program, conflicts with VS Code
+
+> Limitations: SQL export can only create a basic initialization script and migrations. Those are incomplete.
 
 ### Vertabelo/Redgate Data Modeler
 
@@ -123,6 +140,8 @@ Online comparaisons:
 
 - The user is warned about some missing constraints or similar such as no identifying attribute for an entity.
 
+> Limitations: Generated SQL code does not contain all constraint implementations. Logical layer is missing.
+
 ## Comparative table
 
 | **Name** | **Open Source** | **Conceptual layer** | **Logical layer** | **Physical layer** | **Input Style** | **Export** | **Collaboration** |  **Distribution** | **License** | **Purpose** | **Engineering direction** | **Cardinality coefficients** | **Functional Dependencies** | **Decision Tracing** |
@@ -131,7 +150,7 @@ Online comparaisons:
 | [**dbdiagram.io**](#dbdiagramio) | ❌ | ✗ | ✗ | ✅ | Graphical, DBML | SQL, DBML | Possibly behind paywall | Web | *Proprietary* | Documentation, design | Forward, reverse | ✓ | ❌ | ❌ |
 | [**DBML**](#dbml) | ✅ | ✗ | ✗ | ✅ | DBML | SQL | Possible with VCS | `npm` | Apache-2.0 | Documentation, design | Forward, reverse | ✓ | ❌ | ❌ |
 | [**SqlDBM**](#sqldbm) | ❌ | ✗ | ❌ | ✅ | Graphical | | Cloud based | Web | *Proprietary* | Documentation, design, AI | Forward, reverse | ❌ | ❌ | ❌ |
-| [**DrawSQL**](#drawsql) | ❌ | ❌ | ❌ | ✅ | Graphical, SQL, DBML, JSON | SQL, JSON, Laravel* | Cloud based | Web | *Proprietary* | (Fast) Design, AI, Laravel, collaboration | Forward, reverse | ✓ | ❌ | ❌ |
+| [**DrawSQL**](#drawsql) | ❌ | ❌ | ❌ | ✅ | Graphical, SQL, DBML, JSON | ? | Cloud based | Web | *Proprietary* | (Fast) Design, AI, Laravel, collaboration | Forward, reverse | ✓ | ❌ | ❌ |
 | [**Azimutt**](#azimutt) | ✅ | ✗ | ❌ | ✅ | SQL, [AML](https://azimutt.app/aml) | SQL, [AML](https://azimutt.app/aml) | ❌ | Web, Docker, `npm` | MIT | Documentation, design, analysis, optimization | Forward, reverse | ✓ | ❌ | ❌ |
 | [**QuickDBD**](#quickdbd) | ❌ | ❌ | ✗ | ✅ | Graphical, DSL | SQL, diagram as PDF | ❌ | Web | *Proprietary* | Documentation, design | Forward, reverse | ✓ | ❌ | ❌ |
 | [**eraser**](#eraser) | ❌ | ✓ | ❌ | ✅ | Graphical, DSL | ? | ? | Web | *Proprietary* | Diagram, Design | ? | ? | ❌ | ❌ |
@@ -177,12 +196,10 @@ To sum up, no tool supports all of the following functional requirements:
 
   > How can a tool store the design decisions and their impact of the 3 different layers?
 
-  > How can the tool enforce the use of the three design phases?
-
   > What happens in the three design layers if the model changes?
 - Analyse functional dependencies and compute normalization level
   > How must the user interact with the tool to communicate functional dependencies?
-- Human readable storage of the DB model
+- Serialization
   > How can the tool store the DB model in a human readable way without risking the loss of information and by using a structured non-binary language?
 
 # Technology overview
@@ -210,6 +227,8 @@ To sum up, no tool supports all of the following functional requirements:
 
   > Issues: Both backend and client must be implemented
 
+In collaboration with professor Debruyne, we came up with the following research question: "**How can we facilitate database design at every level (conceptual, logical, and physical) by propagating the effects of each informed decision from one level to the others?**"
+
 ## Reuse of existing solutions
 
 - bigER
@@ -223,6 +242,8 @@ To sum up, no tool supports all of the following functional requirements:
 - Azimutt
   > same as above with the exception that AML is used instead of DBML
 
+We agreed on forking [BigER](#biger) to test the implementation of additional features such that we can test out the extensibility of the extension.
+
 ### DSL
 
 Here is a feature list of a DSL for database modelling:
@@ -231,12 +252,12 @@ Here is a feature list of a DSL for database modelling:
 - (derived/identifying, unique, multi-value, composite, required or nullable) attributes and domains (null as domain implementation or as attribute modifier?)
 - functional dependencies and normalization
 - domain to DB type mapping (or algorithm to do it automatically)
-- choice of index type (hash table or B+ tree)?
+- choice of index type (hash table or B+ tree)
 - absorb relationships or junction table
 - decision tracing (with annotations?)
 - *sub-classes* and *super-classes*
 - aggregations?
-- views?
+- views? (additional feature, same as derived attribute)
 
 Possible additional language features:
 - SQL dialect
