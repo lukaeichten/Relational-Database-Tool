@@ -46,7 +46,16 @@ Algorithm to apply to go from the conceptual model to the relational model (logi
 5. To map binary M:N relationship types, we must use a lookup table. **The `CASCADE` option should be defined for this relation in the physical implementation** because the lookup table depends on both sides of the relationship.
 6. Multivalued attributes are mapped to a new relation. A composite multivalued attribute is flattened. It includes a foreign key to the primary key of the owning entity. **The `CASCADE` option should be defined for this relation in the physical implementation** because the relation is strictly bound to the owning entity. **Additional constraints such as the number of minumum and maximum number of multivalued attribute instances are lost**.
 7. N-ary relationships are mapped to new relations. The primary keys of each participating entity are added to the new relation and form the primary key of the relation. This relation includes additional attributes of the relationship. **Relations with participation of 1 may absorb the relation** (decision to take and to document).
-> From: `Fundamentals of Database Systems 6th Edition`, Chapter 9.1.1 ER-to-Relational Mapping Algorithm; page 286 - 292
+> From: `Fundamentals of Database Systems 6th Edition`, Chapter 9.1 ER-to-Relational Mapping Algorithm; page 286 - 292
+8. There are **four possible ways of mapping specialization and generalization to relations** (decision to take and to document), **constraints are lost and must be implemented elsewhere**:
+   - Create a relation for the generalizing superclass with all attributes of the superclass entity including keys. Create a relation for each of the subclasses with all attributes of the subclass in addition to a foreign key to the superclass relation. The foreign key is part of the primary key of the subclass relation. **This approach works best for any kind of specialization**.
+   - Create only relations for the subclass entities where the attributes of the superclass entity are duplicated in each subclass relation. **This approach only works for disjoint subclasses and creates redundancy if attributes are used in several relations**.
+   - Create only a single relation which contains the attributes of the superclass entity, the attributes of all subclass entities, and one additional type attribute whose value is used to indicate the subclass type. **This only works for disjoint subclasses**.
+   - Create only a single relation which contains the attributes of the superclass entity, the attributes of all subclass entities, and additional type boolean attributes whose trueness indicates that the subclass is used.
+9. The mapping of union types (superclasses with different keys) requires the use of a surrogate key. The surrogate key requires all superclass relations to implement a new foreign key to a new artificial relation. This new artificial relation contains only a primary key and is used in the union type's relationships.
+> From: `Fundamentals of Database Systems 6th Edition`, Chapter 9.2 Mapping EER Model Constructs to Relations; page 294 - 299
+
+The book does not mention how to treat relationships with precise cardinality coefficients such as 2:5.
 
 ## Physical phase
 
