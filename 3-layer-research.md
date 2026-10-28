@@ -32,6 +32,8 @@ The book `Fundamentals of Database Systems 6th Edition` uses the same notation a
 
 - transformation from the high level conceptual model into the implementation data model
   > From: `Fundamentals of Database Systems 6th Edition`, Chapter 7.1 Data Modeling Using the Entity-Relationship (ER) Model; page 202
+- normalization and functional dependencies
+  > From: `Fundamentals of Database Systems 6th Edition`, Chapter 15 Functional Dependencies and Normalization of Relational Databases, page 501 - 536
 
 Algorithm to apply to go from the conceptual model to the relational model (logical phase):
 1. Entities are mapped to relations, including all attributes where composite attributes are "flattened" and a composite key attribute forms a set of primary keys.
