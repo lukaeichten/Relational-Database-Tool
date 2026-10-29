@@ -27,6 +27,7 @@ The book `Fundamentals of Database Systems 6th Edition` uses the same notation a
 - Subclasses, Superclasses, Inheritance (Specialization and Generalization) and their constraints
   > From: `Fundamentals of Database Systems 6th Edition`, Chapter 8.1 Subclasses, Superclasses, and Inheritance & Chapter 8.2 Specialization and Generalization & Chapter 8.3 Constraints and Characteristics of Specialization and Generalization Hierarchies; page 246 & 248 & 251
 
+Output of the conceptual design phase is the ER diagram.
 
 ## Logical phase
 
@@ -59,9 +60,17 @@ Algorithm to apply to go from the conceptual model to the relational model (logi
 
 The book does not mention how to treat relationships with precise cardinality coefficients such as 2:5.
 
+Output of the logical design phase is a relational schema, an alternative database model which is similar to the conceptual ER diagram but may differ after applying normalization.
+
 ## Physical phase
 
 - "internal storage structures, file organizations, indexes, access paths, and physical design parameters for the database files are specified"
   > From: `Fundamentals of Database Systems 6th Edition`, Chapter 7.1 Data Modeling Using the Entity-Relationship (ER) Model; page 202
 - implementation of stored procedures
   > From: `Fundamentals of Database Systems 6th Edition`, Chapter 7.1 Data Modeling Using the Entity-Relationship (ER) Model; page 202
+- choice of indexing: when to use which index
+  > From: `Fundamentals of Database Systems 6th Edition`, Cgapter 20.1.2 Physical Database Design Decisions; page 730 & 731
+- denormalization: some queries/operations on the data might benefit from removing normalization, which aims to reduze redundancy, to get rid of extra processing overhead
+  > From: `Fundamentals of Database Systems 6th Edition`, Cgapter 20.1.2 Physical Database Design Decisions; page 731
+
+The output of the physical database design phase is a DDL "script" which can be used to initialize or migrate a database. This script may be fine tuned for a specific DBMS such as PostgreSQL, MySQL, MariaDB, and Microsoft SQL Server. The constraints of the relational schema ([logical design phase](#logical-phase)) must be enforced by the DDL script. Any violation of these constrains is prohibited.
