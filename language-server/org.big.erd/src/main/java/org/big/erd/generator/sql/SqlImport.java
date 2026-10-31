@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -45,15 +46,16 @@ public class SqlImport implements IErGenerator {
 	private static final int ATTRIBUTE_COMMENT = 4;
 	
 	private static final String FOREIGN_KEY_BASE_PATTERN = "FOREIGN KEY\\s*\\((.*?)\\)\\s*REFERENCES (?:.+?\\.)?(\\S+)\\s*\\((.*?)\\)";
-	private static final String FOREIGN_KEY_PATTERN = ".*?" + FOREIGN_KEY_BASE_PATTERN + "([^,]*?)";
-	private static final int FOREIGN_KEY_ATTRIBUTES = 1;
-	private static final int FOREIGN_KEY_REF_TABLE = 2;
-	private static final int FOREIGN_KEY_REF_ATTRIBUTES = 3;
-	private static final int FOREIGN_KEY_KEYWORDS = 4;
+	private static final String FOREIGN_KEY_PATTERN = ".*?(?:CONSTRAINT\\s+(\\S+)\\s+)?" + FOREIGN_KEY_BASE_PATTERN + "([^,]*?)";
+	private static final int FOREIGN_KEY_NAME = 1;
+	private static final int FOREIGN_KEY_ATTRIBUTES = 2;
+	private static final int FOREIGN_KEY_REF_TABLE = 3;
 
 	private static final String PRIMARY_KEY_BASE_PATTERN = "PRIMARY KEY(?: CLUSTERED)?\\s*\\((.*?)\\)";
 	private static final String PRIMARY_KEY_PATTERN = ".*" + PRIMARY_KEY_BASE_PATTERN + "(?:WITH.+?\\(.*?\\))?[^,\\)]*?";
-	private static final String UNIQUE_KEY_PATTERN = ".*UNIQUE KEY[^,\\)]*?";
+	// UNIQUE (a, b), CONSTRAINT name UNIQUE (a, b) or UNIQUE KEY name (a, b)
+	private static final String UNIQUE_BASE_PATTERN = "\\s*(?:CONSTRAINT\\s+\\S+\\s+)?UNIQUE(?:\\s+KEY)?(?:\\s+[^\\s\\(]+)?\\s*\\(([^)]*)\\)[^,\\r\\n]*";
+	private static final int UNIQUE_ATTRIBUTES = 1;
 
 	@SuppressWarnings("unused")
 	// for debugging
@@ -62,7 +64,8 @@ public class SqlImport implements IErGenerator {
 	private static final int CREATE_TABLE_NAME = 1;
 	private static final int CREATE_TABLE_ATTRIBUTES = 2;
 	private static final int CREATE_TABLE_PRIMARY_KEY = 3;
-	private static final int CREATE_TABLE_FOREIGN_KEYS = 4;
+	private static final int CREATE_TABLE_UNIQUE_KEYS = 4;
+	private static final int CREATE_TABLE_FOREIGN_KEYS = 5;
 
 	@SuppressWarnings("unused")
 	// for debugging
@@ -75,8 +78,8 @@ public class SqlImport implements IErGenerator {
 	private static String getCreateTablePattern(boolean replace) {
 		String pattern = "CREATE TABLE(?: IF NOT EXISTS)? (?:.+?\\.)?(\\S+)\\s*\\(((?:\r\n"
 				+ replaceCaptureGroups(ATTRIBUTE_PATTERN, replace) + ")*?)(?:\r\n"
-				+ PRIMARY_KEY_PATTERN + ")?(?:,\r\n"
-				+ UNIQUE_KEY_PATTERN + ")?((?:,\r\n"
+				+ PRIMARY_KEY_PATTERN + ")?((?:,\r\n"
+				+ replaceCaptureGroups(UNIQUE_BASE_PATTERN, replace) + ")*)((?:,\r\n"
 				+ replaceCaptureGroups(FOREIGN_KEY_PATTERN, replace) + ")*)\r?\n?"
 				+ "\\s*\\)";
 		if (replace) {
@@ -122,6 +125,11 @@ public class SqlImport implements IErGenerator {
 		}
 	}
 	
+	/** Converts SQL DDL statements to an ER model in textual notation. */
+	public String importSql(String diagramName, String sql) {
+		return generateFileContent(diagramName, sql).toString();
+	}
+
 	public static boolean handleFiles() throws IOException {
 		boolean success = true;
 		String[] fileNames = new String[] {"biger", "biger-basic", "biger-relships", "db2look", "mssql", "mysql", "oracle", "pgadmin", "pgdump"};
@@ -165,9 +173,29 @@ public class SqlImport implements IErGenerator {
 		return true;
 	}
 
+	/** A foreign key constraint: columns of the table that reference a key of another table. */
+	private static class ForeignKeyGroup {
+		String name;
+		List<String> attributes;
+		String refTable;
+	}
+
+	/** Information collected for each table. */
+	private static class TableInfo {
+		String name;
+		/** attributes that are not part of a foreign key */
+		List<SqlAttribute> attributes;
+		Map<String, SqlAttribute> attributesAll = new HashMap<>();
+		List<String> primaryKey;
+		List<List<String>> uniqueKeys = new ArrayList<>();
+		List<ForeignKeyGroup> foreignKeys = new ArrayList<>();
+		boolean entity;
+		boolean weak;
+	}
+
 	private StringConcatenation generateFileContent(String diagramName, String text) {
 		String preprocessedSql = preprocessSql(text);
-		
+
 		StringConcatenation fileContent = new StringConcatenation();
 		fileContent.append("// ER Model");
 		fileContent.newLineIfNotEmpty();
@@ -182,12 +210,8 @@ public class SqlImport implements IErGenerator {
 
 		Map<String, String> presetPrimaryKeys = new LinkedHashMap<>();
 		Map<String, String> presetForeignKeys = new LinkedHashMap<>();
-		Map<String, Map<String, String>> globalForeignKeys = new LinkedHashMap<>();
-		Map<String, Map<String, String>> globalForeignKeysRefTable = new LinkedHashMap<>();
-		Map<String, List<SqlAttribute>> globalAttributes = new LinkedHashMap<>();
-		Map<String, List<SqlAttribute>> globalAttributesAll = new LinkedHashMap<>();
-		Map<String, Boolean> globalWeakMap = new LinkedHashMap<>();
-		
+		Map<String, TableInfo> tables = new LinkedHashMap<>();
+
 		// collect primary and foreign keys
 		Pattern pPreset = Pattern.compile(ALTER_TABLE_PATTERN, Pattern.CASE_INSENSITIVE);
 		Matcher mPreset = pPreset.matcher(preprocessedSql);
@@ -195,7 +219,7 @@ public class SqlImport implements IErGenerator {
 			String tableName = mPreset.group(ALTER_TABLE_NAME);
 			String tablePrimaryKey = mPreset.group(ALTER_TABLE_PRIMARY_KEY);
 			String tableForeignKeys = mPreset.group(ALTER_TABLE_FOREIGN_KEYS);
-			
+
 			if (tablePrimaryKey != null) {
 				presetPrimaryKeys.put(tableName, tablePrimaryKey);
 			}
@@ -207,22 +231,24 @@ public class SqlImport implements IErGenerator {
 				}
 			}
 		}
-		
+
 		fileContent.append("// Entities");
 		fileContent.newLineIfNotEmpty();
-		
+
 		// process tables
 		Pattern p = Pattern.compile(CREATE_TABLE_PATTERN, Pattern.CASE_INSENSITIVE);
 		Matcher m = p.matcher(preprocessedSql);
 		while (m.find()) {
+			TableInfo table = new TableInfo();
 			String tableName = m.group(CREATE_TABLE_NAME);
 			String tableAttributes = m.group(CREATE_TABLE_ATTRIBUTES);
 			String tablePrimaryKey = m.group(CREATE_TABLE_PRIMARY_KEY);
+			String tableUniqueKeys = m.group(CREATE_TABLE_UNIQUE_KEYS);
 			String tableForeignKeys = m.group(CREATE_TABLE_FOREIGN_KEYS);
+			table.name = tableName;
 
 			// process foreign keys
-			Map<String, String> foreignKeys = new LinkedHashMap<>();
-			Map<String, String> foreignKeysRefTable = new LinkedHashMap<>();
+			Set<String> foreignKeyAttributes = new HashSet<>();
 			if (tableForeignKeys == null || tableForeignKeys.isEmpty()) {
 				tableForeignKeys = presetForeignKeys.get(tableName);
 			}
@@ -230,43 +256,30 @@ public class SqlImport implements IErGenerator {
 				Pattern pFor = Pattern.compile(FOREIGN_KEY_PATTERN, Pattern.CASE_INSENSITIVE);
 				Matcher mFor = pFor.matcher(tableForeignKeys);
 				while (mFor.find()) {
-					String foreignKeyAttributes = mFor.group(FOREIGN_KEY_ATTRIBUTES);
-					List<String> foreignKeyAttributeList = splitAndTrim(foreignKeyAttributes);
-					String foreignKeyRefTable = mFor.group(FOREIGN_KEY_REF_TABLE);
-					String foreignKeyRefAttributes = mFor.group(FOREIGN_KEY_REF_ATTRIBUTES);
-					List<String> foreignKeyRefAttributeList = splitAndTrim(foreignKeyRefAttributes);
-					String foreignKeyKeywords = mFor.group(FOREIGN_KEY_KEYWORDS);
-					for (int i = 0; i < foreignKeyAttributeList.size(); i++) {
-						String id = foreignKeyAttributeList.get(i);
-						String idRefTable = foreignKeyRefAttributeList.get(i);
-						foreignKeys.put(id, foreignKeyRefTable);
-						foreignKeysRefTable.put(id, idRefTable);
-					}
-					globalForeignKeys.put(tableName, foreignKeys);
-					globalForeignKeysRefTable.put(tableName, foreignKeysRefTable);
+					ForeignKeyGroup foreignKey = new ForeignKeyGroup();
+					foreignKey.name = mFor.group(FOREIGN_KEY_NAME);
+					foreignKey.attributes = splitAndTrim(mFor.group(FOREIGN_KEY_ATTRIBUTES));
+					foreignKey.refTable = mFor.group(FOREIGN_KEY_REF_TABLE);
+					table.foreignKeys.add(foreignKey);
+					foreignKeyAttributes.addAll(foreignKey.attributes);
 				}
 			}
 
-			// process primary keys
+			// process primary and unique keys
 			if (tablePrimaryKey == null) {
 				tablePrimaryKey = presetPrimaryKeys.get(tableName);
 			}
-			List<String> primaryKeyAttributes = new ArrayList<>();
-			if (tablePrimaryKey != null) {
-				String[] pk = tablePrimaryKey.split(",");
-				for (String id : pk) {
-					id = id.trim();
-					int index = id.indexOf(" ");
-					if (index > 0) {
-						id = id.substring(0, index);
-					}
-					primaryKeyAttributes.add(id);
+			List<String> primaryKeyAttributes = splitKeyAttributes(tablePrimaryKey);
+			table.primaryKey = primaryKeyAttributes;
+			if (tableUniqueKeys != null) {
+				Matcher mUnique = Pattern.compile(UNIQUE_BASE_PATTERN, Pattern.CASE_INSENSITIVE).matcher(tableUniqueKeys);
+				while (mUnique.find()) {
+					table.uniqueKeys.add(splitKeyAttributes(mUnique.group(UNIQUE_ATTRIBUTES)));
 				}
 			}
 
 			// process attributes
 			List<SqlAttribute> attributes = new ArrayList<>();
-			List<SqlAttribute> attributesAll = new ArrayList<>();
 			Pattern pAtt = Pattern.compile(ATTRIBUTE_PATTERN, Pattern.CASE_INSENSITIVE);
 			Matcher mAtt = pAtt.matcher(tableAttributes);
 			boolean weak = false;
@@ -311,13 +324,13 @@ public class SqlImport implements IErGenerator {
 					attribute.setAttributeType(attributeType);
 					attribute.setAttributeKeywords(attributeKeywords);
 					attribute.setAttributeComment(attributeComment);
-	
-					attributesAll.add(attribute);
-	
-					if (!foreignKeys.containsKey(attributeName)) {
+
+					table.attributesAll.put(attributeName, attribute);
+
+					if (!foreignKeyAttributes.contains(attributeName)) {
 						attributes.add(attribute);
-						
-						if (primaryKeyAttributes.contains(attributeName) || foreignKeys.isEmpty()) {
+
+						if (primaryKeyAttributes.contains(attributeName) || foreignKeyAttributes.isEmpty()) {
 							isEntity = true;
 						}
 					} else if (primaryKeyAttributes.contains(attributeName)) {
@@ -325,7 +338,7 @@ public class SqlImport implements IErGenerator {
 					}
 				}
 			}
-			
+
 			if (isEntity) {
 				// generate entities
 				if (weak) {
@@ -335,107 +348,218 @@ public class SqlImport implements IErGenerator {
 				fileContent.append(capitalize(deQuote(tableName)));
 				fileContent.append(" {");
 				fileContent.newLineIfNotEmpty();
-				
+
 				addAttributes(fileContent, attributes, primaryKeyAttributes, weak);
-				
+
 				fileContent.append("}");
 				fileContent.newLineIfNotEmpty();
 			}
-			globalAttributes.put(tableName, attributes);
-			globalAttributesAll.put(tableName, attributesAll);
-			globalWeakMap.put(tableName, weak && isEntity);
+			table.attributes = attributes;
+			table.entity = isEntity;
+			table.weak = weak && isEntity;
+			tables.put(tableName, table);
 		}
-		
+
 		fileContent.append("// Relationships");
 		fileContent.newLineIfNotEmpty();
-		
+
 		// generate relationships
 		Set<String> usedNames = new HashSet<>();
-		for (String tableName : globalForeignKeys.keySet()) {
-			Map<String, String> foreignKeys = globalForeignKeys.get(tableName);
-			Map<String, String> foreignKeysRefTable = globalForeignKeysRefTable.get(tableName);
-			List<SqlAttribute> attributes = globalAttributes.get(tableName);
-			List<SqlAttribute> attributesAll = globalAttributesAll.get(tableName);
-			boolean weak = globalWeakMap.get(tableName);
-			Set<String> refTables = new LinkedHashSet<>(foreignKeys.values());
-			
-			Map<String, SqlAttribute> attributeMap = new HashMap<>();
-			if (attributesAll != null) {
-				for (SqlAttribute attribute : attributesAll) {
-					attributeMap.put(attribute.getAttributeName(), attribute);
-				}
+		for (String tableName : tables.keySet()) {
+			usedNames.add(capitalize(deQuote(tableName)));
+		}
+		for (TableInfo table : tables.values()) {
+			if (table.foreignKeys.isEmpty()) {
+				continue;
 			}
-
-			if (weak) {
-				refTables.add(tableName);
-				fileContent.append("weak ");
-			}
-			fileContent.append("relationship ");
-			if (weak) {
-				StringBuilder sb = new StringBuilder();
-				for (String table : refTables) {
-					sb.append(capitalize(deQuote(table)));
-				}
-				String name = GeneratorUtils.findUniqueName(sb.toString(), usedNames);
-				fileContent.append(name);
-			} else {
-				fileContent.append(capitalize(deQuote(tableName)));
-			}
-			fileContent.append(" {");
-			fileContent.newLineIfNotEmpty();
-			
-			boolean first = true;
-			int countMultiple = 0;
-			for (String attribute : foreignKeys.keySet()) {
-				String table = foreignKeys.get(attribute);
-				List<SqlAttribute> attributesRefTable = globalAttributes.get(table);
-				Map<String, SqlAttribute> attributeMapRefTable = new HashMap<>();
-				if (attributesRefTable != null) {
-					for (SqlAttribute attributeRefTable : attributesRefTable) {
-						attributeMapRefTable.put(attributeRefTable.getAttributeName(), attributeRefTable);
+			if (table.entity) {
+				// foreign keys that are part of the primary key identify a weak entity,
+				// all others represent 1:1 or 1:N relationships
+				List<ForeignKeyGroup> identifying = new ArrayList<>();
+				for (ForeignKeyGroup foreignKey : table.foreignKeys) {
+					boolean inPrimaryKey = false;
+					for (String attribute : foreignKey.attributes) {
+						inPrimaryKey |= table.primaryKey.contains(attribute);
 					}
-				}
-				SqlAttribute sqlAttributeRefTable = attributeMapRefTable.get(foreignKeysRefTable.get(attribute));
-				boolean isFirstDegreeRelship = attributesRefTable == null || sqlAttributeRefTable != null;
-				if (isFirstDegreeRelship) {
-					if (!first) {
-						fileContent.append(" -> ");
+					if (inPrimaryKey) {
+						identifying.add(foreignKey);
 					} else {
-						fileContent.append("\t");
-					}
-					fileContent.append(capitalize(deQuote(table)));
-					SqlAttribute sqlAttribute = attributeMap.get(attribute);
-					boolean isMandantory = sqlAttribute != null && sqlAttribute.isMandatory();
-					boolean isSingle = weak && first;
-					fileContent.append("[");
-					fileContent.append(getCardinality(weak || isMandantory, isSingle, countMultiple));
-					fileContent.append("]");
-					first = false;
-					if (!isSingle) {
-						countMultiple++;
+						addForeignKeyRelationship(fileContent, table, foreignKey, usedNames);
 					}
 				}
-			}
-			if (weak) {
-				fileContent.append(" -> ");
-				fileContent.append(capitalize(deQuote(tableName)));
-				fileContent.append("[");
-				fileContent.append(getCardinality(false, false, countMultiple));
-				fileContent.append("]");
+				if (table.weak && !identifying.isEmpty()) {
+					addWeakRelationship(fileContent, table, identifying, usedNames);
+				}
 			} else {
-				fileContent.append("\t");
-				fileContent.append("// example cardinalities");
+				addRelationshipTable(fileContent, table);
 			}
-			fileContent.newLineIfNotEmpty();
-
-			if (!weak) {
-				addAttributes(fileContent, attributes, null, false);
-			}
-			
-			fileContent.append("}");
-			fileContent.newLineIfNotEmpty();
 		}
 		return fileContent;
+	}
+
+	/** Weak relationship between the strong entities and the weak entity stored in {@code table}. */
+	private void addWeakRelationship(StringConcatenation fileContent, TableInfo table, List<ForeignKeyGroup> identifying, Set<String> usedNames) {
+		Set<String> refTables = new LinkedHashSet<>();
+		for (ForeignKeyGroup foreignKey : identifying) {
+			refTables.add(foreignKey.refTable);
+		}
+		refTables.add(table.name);
+		StringBuilder sb = new StringBuilder();
+		for (String refTable : refTables) {
+			sb.append(capitalize(deQuote(refTable)));
+		}
+		fileContent.append("weak relationship ");
+		fileContent.append(GeneratorUtils.findUniqueName(sb.toString(), usedNames));
+		fileContent.append(" {");
+		fileContent.newLineIfNotEmpty();
+
+		boolean first = true;
+		int countMultiple = 0;
+		for (ForeignKeyGroup foreignKey : identifying) {
+			fileContent.append(first ? "\t" : " -> ");
+			fileContent.append(capitalize(deQuote(foreignKey.refTable)));
+			fileContent.append("[");
+			fileContent.append(getCardinality(true, first, countMultiple));
+			fileContent.append("]");
+			if (!first) {
+				countMultiple++;
+			}
+			first = false;
+		}
+		fileContent.append(" -> ");
+		fileContent.append(capitalize(deQuote(table.name)));
+		fileContent.append("[");
+		fileContent.append(getCardinality(false, false, countMultiple));
+		fileContent.append("]");
+		fileContent.newLineIfNotEmpty();
+		fileContent.append("}");
+		fileContent.newLineIfNotEmpty();
+	}
+
+	/**
+	 * 1:1 or 1:N relationship stored as foreign key in an entity table.
+	 * The referenced side is [1] if the columns are NOT NULL, otherwise [0..1].
+	 * The referencing side is [0..1] if the columns are unique, otherwise [N].
+	 */
+	private void addForeignKeyRelationship(StringConcatenation fileContent, TableInfo table, ForeignKeyGroup foreignKey, Set<String> usedNames) {
+		String name = foreignKey.name != null ? deQuote(foreignKey.name) : null;
+		if (name != null && name.length() > 3 && name.toLowerCase().startsWith("fk_")) {
+			// constraint names generated by bigER: fk_<relationship>
+			name = name.substring(3);
+		} else {
+			name = capitalize(deQuote(table.name)) + capitalize(deQuote(foreignKey.refTable));
+		}
+		boolean mandatory = isMandatory(table, foreignKey.attributes);
+		boolean unique = isUnique(table, foreignKey.attributes);
+
+		fileContent.append("relationship ");
+		fileContent.append(GeneratorUtils.findUniqueName(name, usedNames));
+		fileContent.append(" {");
+		fileContent.newLineIfNotEmpty();
+		fileContent.append("\t");
+		fileContent.append(capitalize(deQuote(foreignKey.refTable)));
+		fileContent.append("[");
+		fileContent.append(getCardinality(mandatory, true, 0));
+		fileContent.append("] -> ");
+		fileContent.append(capitalize(deQuote(table.name)));
+		fileContent.append("[");
+		fileContent.append(getCardinality(false, unique, unique ? 0 : 1));
+		fileContent.append("]");
+		fileContent.newLineIfNotEmpty();
+		fileContent.append("}");
+		fileContent.newLineIfNotEmpty();
+	}
+
+	/**
+	 * Relationship stored in its own table. A participant has a maximum cardinality of 1
+	 * if a primary or unique key of the table does not contain its columns.
+	 */
+	private void addRelationshipTable(StringConcatenation fileContent, TableInfo table) {
+		Set<String> participantAttributes = new HashSet<>();
+		for (ForeignKeyGroup foreignKey : table.foreignKeys) {
+			participantAttributes.addAll(foreignKey.attributes);
+		}
+		List<List<String>> candidateKeys = new ArrayList<>();
+		if (!table.primaryKey.isEmpty()) {
+			candidateKeys.add(table.primaryKey);
+		}
+		candidateKeys.addAll(table.uniqueKeys);
+
+		fileContent.append("relationship ");
+		fileContent.append(capitalize(deQuote(table.name)));
+		fileContent.append(" {");
+		fileContent.newLineIfNotEmpty();
+
+		boolean first = true;
+		boolean anySingle = false;
+		int countMultiple = 0;
+		for (ForeignKeyGroup foreignKey : table.foreignKeys) {
+			boolean single = false;
+			for (List<String> key : candidateKeys) {
+				if (!key.isEmpty() && participantAttributes.containsAll(key) && Collections.disjoint(key, foreignKey.attributes)) {
+					single = true;
+				}
+			}
+			fileContent.append(first ? "\t" : " -> ");
+			fileContent.append(capitalize(deQuote(foreignKey.refTable)));
+			fileContent.append("[");
+			fileContent.append(getCardinality(isMandatory(table, foreignKey.attributes), single, countMultiple));
+			fileContent.append("]");
+			if (!single) {
+				countMultiple++;
+			}
+			anySingle |= single;
+			first = false;
+		}
+		if (!anySingle) {
+			fileContent.append("\t");
+			fileContent.append("// example cardinalities");
+		}
+		fileContent.newLineIfNotEmpty();
+		addAttributes(fileContent, table.attributes, null, false);
+		fileContent.append("}");
+		fileContent.newLineIfNotEmpty();
+	}
+
+	private boolean isMandatory(TableInfo table, List<String> attributes) {
+		for (String attribute : attributes) {
+			SqlAttribute sqlAttribute = table.attributesAll.get(attribute);
+			if (sqlAttribute == null || !sqlAttribute.isMandatory()) {
+				return false;
+			}
+		}
+		return !attributes.isEmpty();
+	}
+
+	private boolean isUnique(TableInfo table, List<String> attributes) {
+		Set<String> attributeSet = new HashSet<>(attributes);
+		if (attributeSet.equals(new HashSet<>(table.primaryKey))) {
+			return true;
+		}
+		for (List<String> unique : table.uniqueKeys) {
+			if (attributeSet.equals(new HashSet<>(unique))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Splits a key definition such as "a, b DESC" into attribute names. */
+	private List<String> splitKeyAttributes(String key) {
+		List<String> attributes = new ArrayList<>();
+		if (key != null) {
+			for (String id : key.split(",")) {
+				id = id.trim();
+				int index = id.indexOf(" ");
+				if (index > 0) {
+					id = id.substring(0, index);
+				}
+				if (!id.isEmpty()) {
+					attributes.add(id);
+				}
+			}
+		}
+		return attributes;
 	}
 
 	protected String getNotation() {
@@ -443,7 +567,10 @@ public class SqlImport implements IErGenerator {
 	}
 
 	protected String getCardinality(boolean isMandatory, boolean isSingle, int countMultiple) {
-		return isSingle ? "1" : "N";
+		if (isSingle) {
+			return isMandatory ? "1" : "0..1";
+		}
+		return "N";
 	}
 	
 	// ER model does not support spaces in data types
@@ -452,6 +579,8 @@ public class SqlImport implements IErGenerator {
 	}
 
 	private String preprocessSql(String text) {
+		// the patterns expect Windows line endings
+		text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\r\n");
 		// Oracle: insert line break
 		text = text.replace("(\t", "(\r\n\t");
 		// MsSql: combine primary key and foreign key clauses into a single line

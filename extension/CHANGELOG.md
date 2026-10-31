@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Changed
+
+- SQL export enforces relationship cardinalities: 1:N and 1:1 relationships without attributes become foreign key columns (`NOT NULL` for `[1]`, `UNIQUE` for 1:1), relationship tables get primary/unique keys based on cardinalities, and foreign keys are added with `ALTER TABLE` after all tables. Minimum cardinalities that cannot be enforced are listed as SQL comments. `[N]` is treated as "zero or more".
+- SQL import reads the new export format (unique keys, named foreign keys, foreign keys in entity tables) and accepts Unix line endings.
+
 ## [0.5.1] - *02-2025*
 
 ### Fixed

@@ -56,6 +56,11 @@ public class MySqlGenerator extends SqlGenerator {
 		    .collect(Collectors.toList());
 	
 	@Override
+	protected String dropForeignKeyKeyword() {
+		return "DROP FOREIGN KEY";
+	}
+
+	@Override
 	protected String mapDataType(String type) {
 		String upperType = type.toUpperCase();
 		if (ALL_TYPES.contains(upperType)) {
